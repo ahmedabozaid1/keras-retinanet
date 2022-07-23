@@ -16,6 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from keras.utils.vis_utils import plot_model
 import argparse
 import os
 import sys
@@ -124,7 +125,8 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
             'regression'    : losses.smooth_l1(),
             'classification': losses.focal()
         },
-        optimizer=keras.optimizers.Adam(lr=lr, clipnorm=optimizer_clipnorm)
+        optimizer=keras.optimizers.Adam(lr=lr, clipnorm=optimizer_clipnorm),
+        metrics=['accuracy']   # HERE ADDED
     )
 
     return model, training_model, prediction_model
@@ -207,7 +209,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
     if args.evaluation and validation_generator:
         callbacks.append(keras.callbacks.EarlyStopping(
             monitor    = 'mAP',
-            patience   = 5,
+            patience   = 60,
             mode       = 'max',
             min_delta  = 0.01
         ))
@@ -431,7 +433,7 @@ def parse_args(args):
     parser.add_argument('--multi-gpu-force',  help='Extra flag needed to enable (experimental) multi-gpu support.', action='store_true')
     parser.add_argument('--initial-epoch',    help='Epoch from which to begin the train, useful if resuming from snapshot.', type=int, default=0)
     parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=50)
-    parser.add_argument('--steps',            help='Number of steps per epoch.', type=int, default=10000)
+    #parser.add_argument('--steps',            help='Number of steps per epoch.', type=int, default=10000)
     parser.add_argument('--lr',               help='Learning rate.', type=float, default=1e-5)
     parser.add_argument('--optimizer-clipnorm', help='Clipnorm parameter for  optimizer.', type=float, default=0.001)
     parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./snapshots\')', default='./snapshots')
@@ -513,6 +515,9 @@ def main(args=None):
             config=args.config
         )
 
+
+    plot_model(model, to_file='retina_plot.png',
+           show_shapes=True, show_layer_names=True)
     # print model summary
     print(model.summary())
 
@@ -537,7 +542,7 @@ def main(args=None):
     # start training
     return training_model.fit_generator(
         generator=train_generator,
-        steps_per_epoch=args.steps,
+        #steps_per_epoch=args.steps,
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
